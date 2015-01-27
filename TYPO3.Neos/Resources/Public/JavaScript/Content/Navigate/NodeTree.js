@@ -308,11 +308,22 @@ define(
 				that.set('editNodeTitleMode', true);
 				tree.$widget.unbind();
 
-				var input = $('<input />').attr({id: 'editNode', value: prevTitle});
-				$('.neos-dynatree-title', node.span).html(input);
+				var $input = $('<input />').attr({id: 'editNode', value: prevTitle, 'class': 'neos-dynatree-title'});
+
+				// We cannot just nest the <input> field inside an <a> tag, because this is prohibited by the spec and in Firefox
+				// will make the input field unclickable; firing a blur-Event right away.
+				//
+				// The full problem description and solution explanation can be seen in https://groups.google.com/forum/#!topic/dynatree/9zoBpP75V_0
+				//
+				// Note: This error can also be found in the standard DynaTree example for editing nodes.
+				//
+				// Thus, we'll replace the <a> tag by the input field; remember the original title; and replace it back afterwards after editing
+				// is complete (in order to not destroy event listeners).
+				var $referenceToTitleBeforeEditing = $('a.neos-dynatree-title', node.span);
+				$('.neos-dynatree-title', node.span).replaceWith($input);
 
 				// Focus <input> and bind keyboard handler
-				input.focus().keydown(function(event) {
+				$input.focus().keydown(function(event) {
 					switch (event.which) {
 						case 27: // [esc]
 							// discard changes on [esc]
@@ -327,8 +338,10 @@ define(
 				}).blur(function() {
 					//TODO please don't touch this part it is really fragile so this works in FF and chrome
 					// Accept new value, when user leaves <input>
-					var newTitle = input.val(),
+					var newTitle = $input.val(),
 						title;
+
+					$('input.neos-dynatree-title', node.span).replaceWith($referenceToTitleBeforeEditing);
 					// Re-enable mouse and keyboard handling
 					tree.$widget.bind();
 					node.activate();
@@ -373,8 +386,7 @@ define(
 					}
 
 					node.activate();
-					input.parent().text(title);
-					input.remove();
+					$referenceToTitleBeforeEditing.text(title);
 					setTimeout(function() {
 						that.set('editNodeTitleMode', false);
 					}, 50);
